@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { TarifaItem } from '@/Types/admin';
-import { createTarifa, deleteTarifa, fetchTarifas } from '@/Services/tarifas.service';
+import { createTarifa, deleteTarifa, fetchTarifas, updateTarifa } from '@/Services/tarifas.service';
 import { useToast } from '@/Components/ui/toast';
 
 type TarifaForm = {
@@ -43,6 +43,7 @@ export function TarifasModule() {
   const [loading, setLoading] = useState(true);
   const [tarifas, setTarifas] = useState<TarifaItem[]>([]);
   const [tarifaForm, setTarifaForm] = useState<TarifaForm>(initialTarifaForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const { showToast } = useToast();
 
   const loadTarifas = useCallback(async () => {
@@ -81,7 +82,7 @@ export function TarifasModule() {
 
     try {
       setLoading(true);
-      await createTarifa({
+      const payload: Omit<TarifaItem, 'id'> = {
         nombre: tarifaForm.nombre.trim(),
         valorHoraNormal: buildNumberOrZero(tarifaForm.valorHoraNormal),
         valorHoraExtraDiurna: toNumber(tarifaForm.valorHoraExtraDiurna),
@@ -90,16 +91,22 @@ export function TarifasModule() {
         recargoDiurnoPct: toNumber(tarifaForm.recargoDiurnoPct),
         recargoNocturnoPct: toNumber(tarifaForm.recargoNocturnoPct),
         sucursalesId: tarifaForm.sucursalesId.trim() || undefined,
-      });
-      showToast({
-        title: 'Tarifa creada correctamente',
-        tone: 'success',
-      });
+      };
+
+      if (editingId) {
+        await updateTarifa(editingId, payload);
+        showToast({ title: 'Tarifa actualizada correctamente', tone: 'success' });
+        setEditingId(null);
+      } else {
+        await createTarifa(payload);
+        showToast({ title: 'Tarifa creada correctamente', tone: 'success' });
+      }
+
       setTarifaForm(initialTarifaForm);
       await loadTarifas();
     } catch (createError) {
       showToast({
-        title: 'No se pudo crear la tarifa',
+        title: editingId ? 'No se pudo actualizar la tarifa' : 'No se pudo crear la tarifa',
         description: createError instanceof Error ? createError.message : 'Error desconocido',
         tone: 'error',
       });
@@ -123,6 +130,26 @@ export function TarifasModule() {
         tone: 'error',
       });
     }
+  }
+
+  function startEditTarifa(item: TarifaItem) {
+    setEditingId(item.id);
+    setTarifaForm({
+      nombre: item.nombre || '',
+      valorHoraNormal: String(item.valorHoraNormal ?? 0),
+      valorHoraExtraDiurna: String(item.valorHoraExtraDiurna ?? 0),
+      valorHoraExtraNocturna: String(item.valorHoraExtraNocturna ?? 0),
+      valorHoraExtraFestiva: String(item.valorHoraExtraFestiva ?? 0),
+      recargoDiurnoPct: String(item.recargoDiurnoPct ?? 0),
+      recargoNocturnoPct: String(item.recargoNocturnoPct ?? 0),
+      sucursalesId: item.sucursalesId || '',
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setTarifaForm(initialTarifaForm);
   }
 
   return (
@@ -171,7 +198,12 @@ export function TarifasModule() {
           Sucursal / código punto
           <input value={tarifaForm.sucursalesId} onChange={(event) => setTarifaForm((current) => ({ ...current, sucursalesId: event.target.value }))} placeholder="SUC001" disabled={loading} />
         </label>
-        <button className="primary-button" type="submit" disabled={loading}>Crear tarifa</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="primary-button" type="submit" disabled={loading}>{editingId ? 'Guardar cambios' : 'Crear tarifa'}</button>
+          {editingId && (
+            <button type="button" className="ghost-button" onClick={cancelEdit} disabled={loading}>Cancelar</button>
+          )}
+        </div>
       </form>
 
       <div className="panel-card list-card">
@@ -187,7 +219,10 @@ export function TarifasModule() {
                 <span>Normal: {tarifa.valorHoraNormal}</span>
                 <small>Sucursal: {tarifa.sucursalesId || '-'}</small>
               </div>
-              <button type="button" className="ghost-button" onClick={() => void removeTarifaItem(tarifa.id)} disabled={loading}>Eliminar</button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="ghost-button" onClick={() => startEditTarifa(tarifa)} disabled={loading}>Editar</button>
+                <button type="button" className="ghost-button" onClick={() => void removeTarifaItem(tarifa.id)} disabled={loading}>Eliminar</button>
+              </div>
             </article>
           ))}
           {!tarifas.length && <p className="empty-state">Aún no hay tarifas creadas.</p>}

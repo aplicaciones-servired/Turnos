@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { ProgramacionItem, SucursalOption, TurnoItem, VendedorOption } from '@/Types/admin';
 import { fetchVendedores } from '@/Services/vendedores.service';
-import { createProgramacion, deleteProgramacion, fetchProgramaciones } from '@/Services/programaciones.service';
+import { createProgramacion, deleteProgramacion, fetchProgramaciones, updateProgramacion } from '@/Services/programaciones.service';
 import { fetchSucursales } from '@/Services/sucursales.service';
 import { fetchTurnos } from '@/Services/turnos.service';
 import { useToast } from '@/Components/ui/toast';
+import ProgramacionesCalendar from './ProgramacionesCalendar';
 
 type ProgramacionForm = {
   vendedorDocumento: string;
@@ -77,13 +78,14 @@ function toDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export function ProgramacionesModule() {
+export function ProgramacionesModule({ viewMode = 'list' }: { viewMode?: 'list' | 'calendar' }) {
   const [loading, setLoading] = useState(true);
   const [vendedores, setVendedores] = useState<VendedorOption[]>([]);
   const [sucursales, setSucursales] = useState<SucursalOption[]>([]);
   const [turnos, setTurnos] = useState<TurnoItem[]>([]);
   const [programaciones, setProgramaciones] = useState<ProgramacionItem[]>([]);
   const [programacionForm, setProgramacionForm] = useState<ProgramacionForm>(initialProgramacionForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [selectedSucursal, setSelectedSucursal] = useState('');
   const { showToast } = useToast();
@@ -171,7 +173,7 @@ export function ProgramacionesModule() {
 
     try {
       setLoading(true);
-      await createProgramacion({
+      const payload: Omit<ProgramacionItem, 'id'> = {
         vendedorDocumento: programacionForm.vendedorDocumento.trim(),
         turnoId: Number(programacionForm.turnoId),
         fecha: programacionForm.fecha,
@@ -180,16 +182,22 @@ export function ProgramacionesModule() {
         secuencia: toNumber(programacionForm.secuencia),
         horasProgramadas: toNumber(programacionForm.horasProgramadas),
         aplicaHoraExtra: programacionForm.aplicaHoraExtra,
-      });
-      showToast({
-        title: 'Programación creada correctamente',
-        tone: 'success',
-      });
+      };
+
+      if (editingId) {
+        await updateProgramacion(editingId, payload);
+        showToast({ title: 'Programación actualizada correctamente', tone: 'success' });
+        setEditingId(null);
+      } else {
+        await createProgramacion(payload);
+        showToast({ title: 'Programación creada correctamente', tone: 'success' });
+      }
+
       setProgramacionForm(initialProgramacionForm);
       await loadAll();
     } catch (createError) {
       showToast({
-        title: 'No se pudo crear la programación',
+        title: editingId ? 'No se pudo actualizar la programación' : 'No se pudo crear la programación',
         description: createError instanceof Error ? createError.message : 'Error desconocido',
         tone: 'error',
       });
@@ -213,6 +221,27 @@ export function ProgramacionesModule() {
         tone: 'error',
       });
     }
+  }
+
+  function startEditProgramacion(item: ProgramacionItem) {
+    setEditingId(item.id);
+    setProgramacionForm({
+      vendedorDocumento: item.vendedorDocumento,
+      turnoId: String(item.turnoId),
+      fecha: item.fecha,
+      sucursalesId: item.sucursalesId ?? '',
+      semanaNumero: item.semanaNumero ? String(item.semanaNumero) : '',
+      secuencia: item.secuencia ? String(item.secuencia) : '',
+      horasProgramadas: item.horasProgramadas != null ? String(item.horasProgramadas) : '8.0',
+      aplicaHoraExtra: !!item.aplicaHoraExtra,
+    });
+    setMode('list');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setProgramacionForm(initialProgramacionForm);
   }
 
   const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
@@ -265,9 +294,58 @@ export function ProgramacionesModule() {
     return `${sucursal.NOMBRE || sucursal.CODIGO} (${sucursal.CODIGO})`;
   }, [selectedSucursal, sucursales]);
 
+  // internal mode allows toggling between list and calendar when no prop is provided
+  const [mode, setMode] = useState<'list' | 'calendar'>(viewMode);
+  const isCalendarOnly = mode === 'calendar';
+
+  async function handleExportExcel() {
+    // Construir tabla HTML del calendario
+    const monthLabel = selectedMonth;
+    let html = `<table border="1"><caption>Programaciones ${monthLabel} - ${selectedSucursalLabel}</caption>`;
+    html += '<thead><tr>';
+    weekdays.forEach((w) => { html += `<th>${w}</th>`; });
+    html += '</tr></thead><tbody>';
+
+    calendarWeeks.forEach((week) => {
+      html += '<tr>';
+      week.forEach((date) => {
+        if (!date) {
+          html += '<td></td>';
+          return;
+        }
+        const key = toDateKey(date);
+        const items = programacionesByDate[key] ?? [];
+        let cellHtml = `<div><strong>${date.getDate()}</strong></div>`;
+        items.forEach((it) => {
+          const name = vendedorByDocumento.get(it.vendedorDocumento) || it.vendedorDocumento;
+          cellHtml += `<div>T${it.turnoId} ${name}</div>`;
+        });
+        html += `<td>${cellHtml}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `programaciones_${selectedMonth}_${selectedSucursal || 'todas'}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
-    <div className="panel-grid">
-      <form className="panel-card form-card" onSubmit={handleCreateProgramacion}>
+    <>
+      <div style={{ marginBottom: 12 }} className="tabs-bar">
+        <button type="button" className={`tab-button ${mode === 'list' ? 'active' : ''}`} onClick={() => setMode('list')}>Listado</button>
+        <button type="button" className={`tab-button ${mode === 'calendar' ? 'active' : ''}`} onClick={() => setMode('calendar')}>Calendario</button>
+      </div>
+      <div className="panel-grid">
+      {!isCalendarOnly && (
+        <form className="panel-card form-card" onSubmit={handleCreateProgramacion}>
         <div className="card-title">
           <h2>Nueva programación</h2>
           <p>Asigna un vendedor, turno y fecha para probar la agenda.</p>
@@ -330,10 +408,17 @@ export function ProgramacionesModule() {
           <input type="checkbox" checked={programacionForm.aplicaHoraExtra} onChange={(event) => setProgramacionForm((current) => ({ ...current, aplicaHoraExtra: event.target.checked }))} disabled={loading} />
           Aplica hora extra
         </label>
-        <button className="primary-button" type="submit" disabled={loading}>Crear programación</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="primary-button" type="submit" disabled={loading}>{editingId ? 'Guardar cambios' : 'Crear programación'}</button>
+          {editingId && (
+            <button type="button" className="ghost-button" onClick={cancelEdit} disabled={loading}>Cancelar</button>
+          )}
+        </div>
       </form>
+      )}
 
-      <div className="panel-card list-card">
+      {!isCalendarOnly && (
+        <div className="panel-card list-card">
         <div className="card-title">
           <h2>Programaciones creadas</h2>
           <p>Verifica la relación entre vendedor, turno y fecha.</p>
@@ -346,82 +431,36 @@ export function ProgramacionesModule() {
                 <span>Turno #{programacion.turnoId} · {programacion.fecha}</span>
                 <small>Sucursal: {programacion.sucursalesId || '-'}</small>
               </div>
-              <button type="button" className="ghost-button" onClick={() => void removeProgramacionItem(programacion.id)} disabled={loading}>Eliminar</button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="ghost-button" onClick={() => startEditProgramacion(programacion)} disabled={loading}>Editar</button>
+                <button type="button" className="ghost-button" onClick={() => void removeProgramacionItem(programacion.id)} disabled={loading}>Eliminar</button>
+              </div>
             </article>
           ))}
           {!programaciones.length && <p className="empty-state">Aún no hay programaciones creadas.</p>}
         </div>
       </div>
+      )}
 
-      <div className="panel-card list-card schedule-card">
-        <div className="card-title schedule-title">
-          <div>
-            <h2>Vista mensual</h2>
-            <p>Tablero de programación por día, sucursal y turno.</p>
-          </div>
-          <div className="schedule-filters">
-            <label>
-              Mes
-              <input type="month" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} disabled={loading} />
-            </label>
-            <label>
-              Sucursal
-              <select value={selectedSucursal} onChange={(event) => setSelectedSucursal(event.target.value)} disabled={loading}>
-                <option value="">Todas</option>
-                {sucursales.map((sucursal) => (
-                  <option key={sucursal.CODIGO} value={sucursal.CODIGO}>
-                    {sucursal.NOMBRE || sucursal.CODIGO}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
-
-        <p className="schedule-meta">Mostrando: {selectedSucursalLabel} · {filteredProgramaciones.length} asignaciones</p>
-
-        <div className="schedule-grid-wrapper">
-          <table className="schedule-grid" aria-label="Calendario de programaciones">
-            <thead>
-              <tr>
-                {weekdays.map((day) => (
-                  <th key={day}>{day}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {calendarWeeks.map((week, weekIndex) => (
-                <tr key={`week-${weekIndex}`}>
-                  {week.map((date, dayIndex) => {
-                    if (!date) {
-                      return <td key={`empty-${weekIndex}-${dayIndex}`} className="calendar-empty" />;
-                    }
-
-                    const dateKey = toDateKey(date);
-                    const items = programacionesByDate[dateKey] ?? [];
-
-                    return (
-                      <td key={dateKey} className={dayIndex === 0 ? 'calendar-sunday' : ''}>
-                        <div className="calendar-day-number">{date.getDate()}</div>
-                        <div className="calendar-items">
-                          {items.map((item) => (
-                            <div key={item.id} className="calendar-item">
-                              <strong>T{item.turnoId}</strong>
-                              <span>{vendedorByDocumento.get(item.vendedorDocumento) || item.vendedorDocumento}</span>
-                              <small>{turnoById.get(item.turnoId) || `Turno ${item.turnoId}`}</small>
-                            </div>
-                          ))}
-                          {!items.length && <span className="calendar-empty-text">Sin asignación</span>}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {isCalendarOnly && (
+        <ProgramacionesCalendar
+          calendarWeeks={calendarWeeks}
+          weekdays={weekdays}
+          programacionesByDate={programacionesByDate}
+          vendedorByDocumento={vendedorByDocumento}
+          turnoById={turnoById}
+          sucursales={sucursales}
+          selectedMonth={selectedMonth}
+          setSelectedMonth={setSelectedMonth}
+          selectedSucursal={selectedSucursal}
+          setSelectedSucursal={setSelectedSucursal}
+          selectedSucursalLabel={selectedSucursalLabel}
+          filteredCount={filteredProgramaciones.length}
+          loading={loading}
+          onExport={() => void handleExportExcel()}
+        />
+      )}
       </div>
-    </div>
+    </>
   );
 }

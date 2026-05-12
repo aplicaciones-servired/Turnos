@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { TurnoItem } from '@/Types/admin';
-import { createTurno, deleteTurno, fetchTurnos } from '@/Services/turnos.service';
+import { createTurno, deleteTurno, fetchTurnos, updateTurno } from '@/Services/turnos.service';
 import { useToast } from '@/Components/ui/toast';
 
 type TurnoForm = {
@@ -25,6 +25,7 @@ export function TurnosModule() {
   const [loading, setLoading] = useState(true);
   const [turnos, setTurnos] = useState<TurnoItem[]>([]);
   const [turnoForm, setTurnoForm] = useState<TurnoForm>(initialTurnoForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const { showToast } = useToast();
 
   const loadTurnos = useCallback(async () => {
@@ -63,16 +64,26 @@ export function TurnosModule() {
 
     try {
       setLoading(true);
-      await createTurno(turnoForm);
-      showToast({
-        title: 'Turno creado correctamente',
-        tone: 'success',
-      });
+      const payload: Omit<TurnoItem, 'id'> = {
+        nombre: turnoForm.nombre.trim(),
+        horaInicio: turnoForm.horaInicio,
+        horaFin: turnoForm.horaFin,
+        esNocturno: turnoForm.esNocturno,
+      };
+
+      if (editingId) {
+        await updateTurno(editingId, payload);
+        showToast({ title: 'Turno actualizado correctamente', tone: 'success' });
+        setEditingId(null);
+      } else {
+        await createTurno(payload);
+        showToast({ title: 'Turno creado correctamente', tone: 'success' });
+      }
       setTurnoForm(initialTurnoForm);
       await loadTurnos();
     } catch (createError) {
       showToast({
-        title: 'No se pudo crear el turno',
+        title: editingId ? 'No se pudo actualizar el turno' : 'No se pudo crear el turno',
         description: createError instanceof Error ? createError.message : 'Error desconocido',
         tone: 'error',
       });
@@ -96,6 +107,17 @@ export function TurnosModule() {
         tone: 'error',
       });
     }
+  }
+
+  function startEditTurno(item: TurnoItem) {
+    setEditingId(item.id);
+    setTurnoForm({ nombre: item.nombre, horaInicio: item.horaInicio, horaFin: item.horaFin, esNocturno: !!item.esNocturno });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setTurnoForm(initialTurnoForm);
   }
 
   return (
@@ -124,7 +146,12 @@ export function TurnosModule() {
           <input type="checkbox" checked={turnoForm.esNocturno} onChange={(event) => setTurnoForm((current) => ({ ...current, esNocturno: event.target.checked }))} disabled={loading} />
           Es nocturno
         </label>
-        <button className="primary-button" type="submit" disabled={loading}>Crear turno</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="primary-button" type="submit" disabled={loading}>{editingId ? 'Guardar cambios' : 'Crear turno'}</button>
+          {editingId && (
+            <button type="button" className="ghost-button" onClick={cancelEdit} disabled={loading}>Cancelar</button>
+          )}
+        </div>
       </form>
 
       <div className="panel-card list-card">
@@ -140,7 +167,10 @@ export function TurnosModule() {
                 <span>{turno.horaInicio} - {turno.horaFin}</span>
                 <small>Nocturno: {formatBoolean(turno.esNocturno)}</small>
               </div>
-              <button type="button" className="ghost-button" onClick={() => void removeTurnoItem(turno.id)} disabled={loading}>Eliminar</button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="ghost-button" onClick={() => startEditTurno(turno)} disabled={loading}>Editar</button>
+                <button type="button" className="ghost-button" onClick={() => void removeTurnoItem(turno.id)} disabled={loading}>Eliminar</button>
+              </div>
             </article>
           ))}
           {!turnos.length && <p className="empty-state">Aún no hay turnos creados.</p>}

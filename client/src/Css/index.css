@@ -452,6 +452,21 @@ textarea:focus {
   font-size: 0.78rem;
 }
 
+.calendar-fullday {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height: calc(100% - 28px);
+  background: #c41b1b;
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px;
+}
+.calendar-fullday-name {
+  font-weight: 800;
+  text-align: center;
+}
+
 @media (max-width: 1100px) {
   .hero-panel,
   .panel-grid {
@@ -729,3 +744,31 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
+
+/* Subnav used in ProgramacionesPage */
+.subnav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.subnav-item {
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,0.9);
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.subnav-item.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #fff;
+  border-color: transparent;
+}
+
+/* when calendar is the only visible panel make it wider */
+.schedule-card.full-width {
+  grid-column: 1 / -1;
+  padding: 22px;
+}
+
+.export-actions { display:flex; align-items:center; gap:8px; }
+.secondary-button { border: 0; padding: 8px 12px; border-radius: 10px; background: #eef2ff; color: var(--accent-strong); }

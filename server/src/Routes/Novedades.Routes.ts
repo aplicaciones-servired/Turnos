@@ -12,6 +12,9 @@ router.get('/novedades/:id', NovedadesController.getNovedadById);
 // Obtener novedades por vendedor
 router.get('/novedades/vendedor/:vendedorDocumento', NovedadesController.getNovedadesByVendedor);
 
+// Obtener novedad por ticket
+router.get('/novedades/tk/:ticket', NovedadesController.getNovedadByTicket);
+
 // Obtener novedades por tipo
 router.get('/novedades/tipo/:tipo', NovedadesController.getNovedadesByTipo);
 

@@ -4,6 +4,7 @@ import dbPruebaPowerbi from '@/Database/dbprueba';
 
 interface NovedadAttributes {
   id: number;
+  ticketNumber?: number;
   vendedorDocumento: string;
   fecha: Date;
   tipo: 'permiso' | 'incapacidad' | 'ausencia' | 'otro';
@@ -16,6 +17,7 @@ type NovedadCreationAttributes = Optional<NovedadAttributes, 'id' | 'incidenteNu
 
 class Novedad extends Model<NovedadAttributes, NovedadCreationAttributes> implements NovedadAttributes {
   public id!: number;
+  public ticketNumber?: number;
   public vendedorDocumento!: string;
   public fecha!: Date;
   public tipo!: 'permiso' | 'incapacidad' | 'ausencia' | 'otro';
@@ -27,6 +29,7 @@ class Novedad extends Model<NovedadAttributes, NovedadCreationAttributes> implem
 Novedad.init(
   {
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+      ticketNumber: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true, unique: true },
     vendedorDocumento: { type: DataTypes.STRING(20), allowNull: false },
     fecha: { type: DataTypes.DATEONLY, allowNull: false },
     tipo: { type: DataTypes.ENUM('permiso', 'incapacidad', 'ausencia', 'otro'), allowNull: false },

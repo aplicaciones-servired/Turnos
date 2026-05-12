@@ -11,6 +11,11 @@ export async function createNovedad(payload: Omit<NovedadItem, 'id'>) {
   return response.data;
 }
 
+export async function fetchNovedadByTicket(ticketNumber: number) {
+  const response = await apiClient.get(`/novedades/tk/${ticketNumber}`);
+  return response.data.data as NovedadItem;
+}
+
 export async function updateNovedad(id: number, payload: Omit<NovedadItem, 'id'>) {
   const response = await apiClient.put(`/novedades/${id}`, payload);
   return response.data;

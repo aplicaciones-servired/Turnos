@@ -44,6 +44,7 @@ export interface ProgramacionItem {
 
 export interface NovedadItem {
   id: number;
+  ticketNumber?: number;
   vendedorDocumento: string;
   fecha: string;
   tipo: 'permiso' | 'incapacidad' | 'ausencia' | 'otro';

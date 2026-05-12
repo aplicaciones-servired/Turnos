@@ -31,6 +31,7 @@ export function NovedadesModule() {
   const [loading, setLoading] = useState(true);
   const [vendedores, setVendedores] = useState<VendedorOption[]>([]);
   const [novedades, setNovedades] = useState<NovedadItem[]>([]);
+  const [searchTicket, setSearchTicket] = useState<string>('');
   const [novedadForm, setNovedadForm] = useState<NovedadForm>(initialNovedadForm);
   const { showToast } = useToast();
 
@@ -107,6 +108,7 @@ export function NovedadesModule() {
         title: 'Novedad creada correctamente',
         tone: 'success',
       });
+      // after create, try to reload and show latest including ticket
       setNovedadForm(initialNovedadForm);
       await loadAll();
     } catch (createError) {
@@ -134,6 +136,28 @@ export function NovedadesModule() {
         description: deleteError instanceof Error ? deleteError.message : 'Error desconocido',
         tone: 'error',
       });
+    }
+  }
+
+  async function handleSearchByTicket() {
+    if (!searchTicket.trim()) {
+      await loadAll();
+      return;
+    }
+    const ticketNum = Number(searchTicket.trim());
+    if (Number.isNaN(ticketNum)) {
+      showToast({ title: 'Ticket inválido', tone: 'warning' });
+      return;
+    }
+    try {
+      setLoading(true);
+      const result = await (await import('@/Services/novedades.service')).fetchNovedadByTicket(ticketNum);
+      setNovedades(result ? [result] : []);
+    } catch (err) {
+      showToast({ title: 'No se encontró la novedad', tone: 'warning' });
+      setNovedades([]);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -223,11 +247,16 @@ export function NovedadesModule() {
           <h2>Novedades creadas</h2>
           <p>Usa este módulo para validar incidencias y ausencias.</p>
         </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <input placeholder="Buscar por TK" value={searchTicket} onChange={(e) => setSearchTicket(e.target.value)} />
+          <button className="ghost-button" type="button" onClick={() => void handleSearchByTicket()}>Buscar</button>
+          <button className="ghost-button" type="button" onClick={() => { setSearchTicket(''); void loadAll(); }}>Limpiar</button>
+        </div>
         <div className="records-list">
           {novedades.map((n) => (
             <article key={n.id} className="record-item">
               <div>
-                <strong>{n.tipo}</strong>
+                <strong>{n.tipo} {n.ticketNumber ? `· TK-${n.ticketNumber}` : ''}</strong>
                 <span>
                   {n.vendedorDocumento} · {n.fecha}
                 </span>

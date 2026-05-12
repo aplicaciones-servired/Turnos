@@ -2,12 +2,20 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import Novedad from '@/Models/Novedad';
 
+function withTicketNumber(novedad: Novedad) {
+  const plain = novedad.get({ plain: true }) as Novedad & { ticketNumber?: number };
+  return {
+    ...plain,
+    ticketNumber: plain.ticketNumber ?? plain.id,
+  };
+}
+
 class NovedadesController {
   // Obtener todas las novedades
   async getAllNovedades(req: Request, res: Response): Promise<void> {
     try {
       const novedades = await Novedad.findAll();
-      res.status(200).json({ success: true, data: novedades });
+      res.status(200).json({ success: true, data: novedades.map(withTicketNumber) });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }
@@ -22,7 +30,7 @@ class NovedadesController {
         res.status(404).json({ success: false, error: 'Novedad no encontrada' });
         return;
       }
-      res.status(200).json({ success: true, data: novedad });
+      res.status(200).json({ success: true, data: withTicketNumber(novedad) });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }
@@ -33,7 +41,7 @@ class NovedadesController {
     try {
       const { vendedorDocumento } = req.params;
       const novedades = await Novedad.findAll({ where: { vendedorDocumento } });
-      res.status(200).json({ success: true, data: novedades });
+      res.status(200).json({ success: true, data: novedades.map(withTicketNumber) });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }
@@ -49,7 +57,7 @@ class NovedadesController {
         return;
       }
       const novedades = await Novedad.findAll({ where: { tipo } });
-      res.status(200).json({ success: true, data: novedades });
+      res.status(200).json({ success: true, data: novedades.map(withTicketNumber) });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }
@@ -67,7 +75,7 @@ class NovedadesController {
           fecha: { [Op.between]: [startDate, endDate] },
         },
       });
-      res.status(200).json({ success: true, data: novedades });
+      res.status(200).json({ success: true, data: novedades.map(withTicketNumber) });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }
@@ -97,7 +105,28 @@ class NovedadesController {
         incidenteNumero,
         descripcion,
       });
-      res.status(201).json({ success: true, data: novedad, message: 'Novedad creada exitosamente' });
+
+      res.status(201).json({ success: true, data: withTicketNumber(novedad), message: 'Novedad creada exitosamente' });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  // Obtener novedad por número de ticket
+  async getNovedadByTicket(req: Request, res: Response): Promise<void> {
+    try {
+      const { ticket } = req.params;
+      const ticketNum = Number(ticket);
+      if (Number.isNaN(ticketNum)) {
+        res.status(400).json({ success: false, error: 'Ticket inválido' });
+        return;
+      }
+      const novedad = await Novedad.findByPk(ticketNum);
+      if (!novedad) {
+        res.status(404).json({ success: false, error: 'Novedad no encontrada' });
+        return;
+      }
+      res.status(200).json({ success: true, data: withTicketNumber(novedad) });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }
@@ -123,7 +152,7 @@ class NovedadesController {
         incidenteNumero,
         descripcion,
       });
-      res.status(200).json({ success: true, data: novedad, message: 'Novedad actualizada exitosamente' });
+      res.status(200).json({ success: true, data: withTicketNumber(novedad), message: 'Novedad actualizada exitosamente' });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }

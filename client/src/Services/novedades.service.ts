@@ -3,7 +3,7 @@ import type { NovedadItem } from '@/Types/admin';
 
 export async function fetchNovedades() {
   const response = await apiClient.get('/novedades');
-  return (response.data.data ?? []) as NovedadItem[];
+  return (response.data.data ?? response.data.datos ?? []) as NovedadItem[];
 }
 
 export async function createNovedad(payload: Omit<NovedadItem, 'id'>) {

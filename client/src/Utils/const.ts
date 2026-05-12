@@ -1,2 +1,2 @@
 // En Vite las variables de entorno del cliente se leen desde `import.meta.env`
-export const API_DATA = (import.meta.env.VITE_PUBLIC_DATA as string) || 'http://localhost:3000';
+export const API_DATA = (import.meta.env.VITE_PUBLIC_DATA as string);

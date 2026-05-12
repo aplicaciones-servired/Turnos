@@ -1,5 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { NovedadItem, VendedorOption } from '@/Types/admin';
+import { fetchVendedores } from '@/Services/vendedores.service';
+import { createNovedad, deleteNovedad, fetchNovedades } from '@/Services/novedades.service';
+import { useToast } from '@/Components/ui/toast';
 
 type NovedadForm = {
   vendedorDocumento: string;
@@ -10,39 +13,128 @@ type NovedadForm = {
   descripcion: string;
 };
 
-interface NovedadesModuleProps {
-  novedades: NovedadItem[];
-  vendedores: VendedorOption[];
-  loading?: boolean;
-  onCreateNovedad: (form: NovedadForm) => Promise<void>;
-  onDeleteNovedad: (id: number) => Promise<void>;
-}
-
 const initialNovedadForm: NovedadForm = {
   vendedorDocumento: '',
   fecha: '',
   tipo: 'permiso',
-  horas: '0',
+  horas: '0.0',
   incidenteNumero: '',
   descripcion: '',
 };
 
-export function NovedadesModule({
-  novedades,
-  vendedores,
-  loading,
-  onCreateNovedad,
-  onDeleteNovedad,
-}: NovedadesModuleProps) {
+function buildNumberOrZero(value: string) {
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+export function NovedadesModule() {
+  const [loading, setLoading] = useState(true);
+  const [vendedores, setVendedores] = useState<VendedorOption[]>([]);
+  const [novedades, setNovedades] = useState<NovedadItem[]>([]);
   const [novedadForm, setNovedadForm] = useState<NovedadForm>(initialNovedadForm);
+  const { showToast } = useToast();
+
+  const loadAll = useCallback(async () => {
+    try {
+      const [vendedoresResult, novedadesResult] = await Promise.allSettled([
+        fetchVendedores(),
+        fetchNovedades(),
+      ]);
+
+      const vendedoresData = vendedoresResult.status === 'fulfilled' ? vendedoresResult.value : [];
+      const novedadesData = novedadesResult.status === 'fulfilled' ? novedadesResult.value : [];
+
+      setVendedores(vendedoresData);
+      setNovedades(novedadesData);
+
+      const errores = [vendedoresResult, novedadesResult]
+        .filter((resultado) => resultado.status === 'rejected')
+        .map((resultado) =>
+          resultado.status === 'rejected'
+            ? (resultado.reason instanceof Error ? resultado.reason.message : String(resultado.reason))
+            : ''
+        )
+        .filter(Boolean);
+
+      if (errores.length) {
+        showToast({
+          title: 'No se pudieron cargar todos los datos',
+          description: errores.join(' | '),
+          tone: 'error',
+        });
+      }
+    } catch (loadError) {
+      showToast({
+        title: 'No se pudo cargar la información',
+        description: loadError instanceof Error ? loadError.message : 'Error desconocido',
+        tone: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadAll();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadAll]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!novedadForm.vendedorDocumento.trim() || !novedadForm.fecha.trim()) {
+      showToast({
+        title: 'Debe elegir vendedor y fecha',
+        tone: 'warning',
+      });
       return;
     }
-    await onCreateNovedad(novedadForm);
-    setNovedadForm(initialNovedadForm);
+
+    try {
+      setLoading(true);
+      await createNovedad({
+        vendedorDocumento: novedadForm.vendedorDocumento.trim(),
+        fecha: novedadForm.fecha,
+        tipo: novedadForm.tipo,
+        horas: buildNumberOrZero(novedadForm.horas),
+        incidenteNumero: novedadForm.incidenteNumero.trim() || undefined,
+        descripcion: novedadForm.descripcion.trim() || undefined,
+      });
+      showToast({
+        title: 'Novedad creada correctamente',
+        tone: 'success',
+      });
+      setNovedadForm(initialNovedadForm);
+      await loadAll();
+    } catch (createError) {
+      showToast({
+        title: 'No se pudo crear la novedad',
+        description: createError instanceof Error ? createError.message : 'Error desconocido',
+        tone: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function removeNovedadItem(id: number) {
+    try {
+      await deleteNovedad(id);
+      showToast({
+        title: 'Novedad eliminada correctamente',
+        tone: 'success',
+      });
+      await loadAll();
+    } catch (deleteError) {
+      showToast({
+        title: 'No se pudo eliminar la novedad',
+        description: deleteError instanceof Error ? deleteError.message : 'Error desconocido',
+        tone: 'error',
+      });
+    }
   }
 
   return (
@@ -52,6 +144,7 @@ export function NovedadesModule({
           <h2>Nueva novedad</h2>
           <p>Registra permisos, incapacidades y ausencias.</p>
         </div>
+        {loading && <div className="alert neutral">Cargando datos...</div>}
         <label>
           Vendedor
           <select
@@ -145,7 +238,7 @@ export function NovedadesModule({
               <button
                 type="button"
                 className="ghost-button"
-                onClick={() => void onDeleteNovedad(n.id)}
+                onClick={() => void removeNovedadItem(n.id)}
                 disabled={loading}
               >
                 Eliminar

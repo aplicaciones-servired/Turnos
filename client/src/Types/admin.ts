@@ -4,6 +4,12 @@ export interface VendedorOption {
   CCOSTO?: string | null;
 }
 
+export interface SucursalOption {
+  CODIGO: string;
+  NOMBRE?: string;
+  CCOSTO?: string;
+}
+
 export interface TurnoItem {
   id: number;
   nombre: string;

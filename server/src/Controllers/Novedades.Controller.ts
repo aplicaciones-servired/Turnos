@@ -1,15 +1,12 @@
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import Novedad from '@/Models/Novedad';
-import Vendedor from '@/Models/Vendedor';
 
 class NovedadesController {
   // Obtener todas las novedades
   async getAllNovedades(req: Request, res: Response): Promise<void> {
     try {
-      const novedades = await Novedad.findAll({
-        include: [{ model: Vendedor, as: 'vendedor' }],
-      });
+      const novedades = await Novedad.findAll();
       res.status(200).json({ success: true, data: novedades });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
@@ -20,9 +17,7 @@ class NovedadesController {
   async getNovedadById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const novedad = await Novedad.findByPk(Number(id), {
-        include: [{ model: Vendedor, as: 'vendedor' }],
-      });
+      const novedad = await Novedad.findByPk(Number(id));
       if (!novedad) {
         res.status(404).json({ success: false, error: 'Novedad no encontrada' });
         return;
@@ -37,10 +32,7 @@ class NovedadesController {
   async getNovedadesByVendedor(req: Request, res: Response): Promise<void> {
     try {
       const { vendedorDocumento } = req.params;
-      const novedades = await Novedad.findAll({
-        where: { vendedorDocumento },
-        include: [{ model: Vendedor, as: 'vendedor' }],
-      });
+      const novedades = await Novedad.findAll({ where: { vendedorDocumento } });
       res.status(200).json({ success: true, data: novedades });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
@@ -56,10 +48,7 @@ class NovedadesController {
         res.status(400).json({ success: false, error: `Tipo inválido. Tipos válidos: ${tiposValidos.join(', ')}` });
         return;
       }
-      const novedades = await Novedad.findAll({
-        where: { tipo },
-        include: [{ model: Vendedor, as: 'vendedor' }],
-      });
+      const novedades = await Novedad.findAll({ where: { tipo } });
       res.status(200).json({ success: true, data: novedades });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
@@ -77,7 +66,6 @@ class NovedadesController {
         where: {
           fecha: { [Op.between]: [startDate, endDate] },
         },
-        include: [{ model: Vendedor, as: 'vendedor' }],
       });
       res.status(200).json({ success: true, data: novedades });
     } catch (error) {

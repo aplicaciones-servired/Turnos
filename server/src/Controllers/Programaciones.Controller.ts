@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import Programacion from '@/Models/Programacion';
-import Vendedor from '@/Models/Vendedor';
 import Turno from '@/Models/Turno';
 
 class ProgramacionesController {
@@ -10,7 +9,6 @@ class ProgramacionesController {
     try {
       const programaciones = await Programacion.findAll({
         include: [
-          { model: Vendedor, as: 'vendedor' },
           { model: Turno, as: 'turno' },
         ],
       });
@@ -26,7 +24,6 @@ class ProgramacionesController {
       const { id } = req.params as { id: string };
       const programacion = await Programacion.findByPk(id, {
         include: [
-          { model: Vendedor, as: 'vendedor' },
           { model: Turno, as: 'turno' },
         ],
       });
@@ -47,7 +44,6 @@ class ProgramacionesController {
       const programaciones = await Programacion.findAll({
         where: { vendedorDocumento },
         include: [
-          { model: Vendedor, as: 'vendedor' },
           { model: Turno, as: 'turno' },
         ],
       });
@@ -64,7 +60,6 @@ class ProgramacionesController {
       const programaciones = await Programacion.findAll({
         where: { sucursalesId },
         include: [
-          { model: Vendedor, as: 'vendedor' },
           { model: Turno, as: 'turno' },
         ],
       });
@@ -86,7 +81,6 @@ class ProgramacionesController {
           fecha: { [Op.between]: [startDate, endDate] },
         },
         include: [
-          { model: Vendedor, as: 'vendedor' },
           { model: Turno, as: 'turno' },
         ],
       });

@@ -1,4 +1,4 @@
-import { Model, DataTypes, Optional } from 'sequelize';
+import { Model, DataTypes } from 'sequelize';
 import db from '../Database/dbPowerbi';
 
 interface SucursalesAttributes {
@@ -25,7 +25,6 @@ interface SucursalesAttributes {
 export interface SucursalesCreationAttributes extends SucursalesAttributes {}
 
 class Sucursales extends Model<SucursalesAttributes, SucursalesCreationAttributes> implements SucursalesAttributes {
-  public id!: number;
   public ZONA!: string;
   public CCOSTO!: string;
   public CODIGO!: string;
@@ -51,7 +50,7 @@ Sucursales.init(
   {
     ZONA: { type: DataTypes.STRING, allowNull: false },
     CCOSTO: { type: DataTypes.STRING, allowNull: false },
-    CODIGO: { type: DataTypes.STRING, allowNull: false },
+    CODIGO: { type: DataTypes.STRING, allowNull: false, primaryKey: true },
     NOMBRE: { type: DataTypes.STRING },
     DIRECCION: { type: DataTypes.STRING },
     TIPO: { type: DataTypes.STRING },
@@ -69,7 +68,7 @@ Sucursales.init(
     HORAS_FESTIVAS: { type: DataTypes.INTEGER },
     ESTADO: { type: DataTypes.STRING },
   },
-  { sequelize: db, tableName: 'SUCURSALES', timestamps: true },
+  { sequelize: db, tableName: 'SUCURSALES', timestamps: false },
 );
 
 export default Sucursales;

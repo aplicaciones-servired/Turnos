@@ -3,8 +3,9 @@ import { TurnosPage } from '@/Pages/TurnosPage';
 import { TarifasPage } from '@/Pages/TarifasPage';
 import { ProgramacionesPage } from '@/Pages/ProgramacionesPage';
 import { NovedadesPage } from '@/Pages/NovedadesPage';
+import { NominaPage } from '@/Pages/NominaPage';
 
-export type PageType = 'dashboard' | 'turnos' | 'tarifas' | 'programaciones' | 'novedades';
+export type PageType = 'dashboard' | 'turnos' | 'tarifas' | 'programaciones' | 'novedades' | 'nomina';
 
 interface PageRouterProps {
   currentPage: PageType;
@@ -20,6 +21,7 @@ const pageComponents: Record<PageType, React.ComponentType> = {
   tarifas: TarifasPage,
   programaciones: ProgramacionesPage,
   novedades: NovedadesPage,
+  nomina: NominaPage,
 };
 
 /**

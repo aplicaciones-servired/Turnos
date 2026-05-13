@@ -52,3 +52,26 @@ export interface NovedadItem {
   incidenteNumero?: string | null;
   descripcion?: string | null;
 }
+
+export interface CalculoHorasItem {
+  id: number;
+  vendedorDocumento: string;
+  mes: number;
+  anio: number;
+  horasTrabajadasNormales: number;
+  horasExtraDiurna: number;
+  horasExtraNocturna: number;
+  horasExtraFestiva: number;
+  horasPermiso: number;
+  horasIncapacidad: number;
+  horasAusencia: number;
+  valorHorasNormales: number;
+  valorHorasExtraDiurna: number;
+  valorHorasExtraNocturna: number;
+  valorHorasExtraFestiva: number;
+  recargosDiurnos: number;
+  recargosNocturnos: number;
+  totalCalculado: number;
+  estado?: 'borrador' | 'procesado' | 'pagado';
+  fechaGeneracion?: string;
+}

@@ -14,6 +14,7 @@ export function MainLayout({ currentPage, onNavigate, children }: MainLayoutProp
     { id: 'tarifas', label: 'Tarifas', icon: '💰' },
     { id: 'programaciones', label: 'Programaciones', icon: '📅' },
     { id: 'novedades', label: 'Novedades', icon: '📝' },
+    { id: 'nomina', label: 'Nómina', icon: '💵' },
   ];
 
   return (
